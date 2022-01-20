@@ -48,11 +48,11 @@ locals {
             },
             "Sid": ""
         }
-    ]    
+    ]
 }
 EOF
   policy             = <<EOF
-{    
+{
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -79,7 +79,7 @@ EOF
             "Effect": "Allow",
             "Resource": "arn:aws:logs:*:*:*"
         }
-    ]    
+    ]
 }
 EOF
 }

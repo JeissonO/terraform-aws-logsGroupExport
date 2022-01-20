@@ -12,7 +12,7 @@ def lambda_handler(event, context):
     log_groups = []
     log_groups_to_export = []
     today = date.today()
-    
+
     if 'S3_BUCKET' not in os.environ:
         print("Error: S3_BUCKET not defined")
         return
@@ -20,17 +20,17 @@ def lambda_handler(event, context):
     while True:
         response = logs.describe_log_groups(**extra_args)
         log_groups = log_groups + response['logGroups']
-        
+
         if not 'nextToken' in response:
             break
         extra_args['nextToken'] = response['nextToken']
-    
+
     for log_group in log_groups:
         response = logs.list_tags_log_group(logGroupName=log_group['logGroupName'])
         log_group_tags = response['tags']
         if 'StoreInS3' in log_group_tags and log_group_tags['StoreInS3'] == 'true':
             log_groups_to_export.append(log_group['logGroupName'])
-    
+
     for log_group_name in log_groups_to_export:
         ssm_parameter_name = ("/log-exporter-last-export/%s" % log_group_name).replace("//", "/")
         try:
@@ -38,15 +38,15 @@ def lambda_handler(event, context):
             ssm_value = ssm_response['Parameter']['Value']
         except ssm.exceptions.ParameterNotFound:
             ssm_value = "0"
-        
+
         export_to_time = int(round(time.time() * 1000))
-        
+
         print("-- Exporting %s to %s" % (log_group_name, os.environ['S3_BUCKET']))
-        
+
         if export_to_time - int(ssm_value) < (24 * 60 * 60 * 1000):
             print("---- Skipped until 24hrs from last export is completed")
             continue
-        
+
         try:
             day = today.strftime("%Y-%m-%d")
             response = logs.create_export_task(
@@ -58,15 +58,15 @@ def lambda_handler(event, context):
             )
             print("-- Task created: %s" % response['taskId'])
             time.sleep(5)
-            
+
         except logs.exceptions.LimitExceededException:
             print("---- Need to wait until all tasks are finished (LimitExceededException). Continuing later...")
             return
-        
+
         except Exception as e:
             print("-- Error exporting %s: %s" % (log_group_name, getattr(e, 'message', repr(e))))
             continue
-        
+
         ssm_response = ssm.put_parameter(
             Name=ssm_parameter_name,
             Type="String",
